@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+.next/
+
+# Environment variables
+.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Model files (optional - uncomment if you don't want to track models)
+# models/
+# outputs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
