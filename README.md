@@ -1,67 +1,37 @@
 # Toronto Housing Price Predictor
 
-This project predicts Toronto's Housing Price Index using XGBoost regression at multiple time horizons (1, 2, 3, 6 months and 1, 2, 3 years).
+A machine learning project that forecasts Toronto’s Housing Price Index (HPI) using historical housing, economic, and financial data.
 
-## Setup Instructions
+## Overview
 
-### Environment Variables
-
-This project uses Supabase for data storage. To set up your environment:
-
-1. **Copy the example environment file:**
-   ```bash
-   cp .env.example .env
-   ```
-
-2. **Fill in your Supabase credentials** in the `.env` file:
-   - `SUPABASE_URL`: Your Supabase project URL
-   - `SUPABASE_KEY`: Your Supabase anon/public key
-   - `SUPABASE_SERVICE_ROLE_KEY`: Your Supabase service role key (keep this secret!)
-
-3. **Never commit the `.env` file** - it's already in `.gitignore` to protect your secrets
-
-### Getting Your Supabase Credentials
-
-1. Go to your [Supabase Dashboard](https://app.supabase.com/)
-2. Select your project
-3. Navigate to Settings → API
-4. Copy the Project URL and the API keys
+This project trains a set of XGBoost regression models to predict the Toronto HPI at multiple future time horizons (1, 2, 3, 6 months and 1, 2, 3 years). The goal is to understand how economic indicators relate to housing prices and generate forward-looking predictions.
 
 ## Data Sources
 
-- Statistics Canada (macroeconomic and housing data)
-- Bank of Canada Valet API (interest rates, bond yields)
+The dataset is built from several public sources:
 
-## Tech Stack
+- **Statistics Canada** — six large CSV files (some up to ~4M rows) containing housing, CPI, unemployment, incomes, building permits, and other macroeconomic data  
+- **Bank of Canada Valet API** — interest rates, treasury bill rates, and bond yields  
 
-- **Backend**: Python, XGBoost
-- **Frontend**: Next.js 16, React, Tailwind CSS v4
-- **Database**: Supabase
-- **Visualization**: Recharts
-- **UI Components**: shadcn/ui with Radix UI primitives
+All data was converted into monthly numeric fields for modeling.
 
-## Running the Project
+## Data Processing
 
-### Python Scripts
-```bash
-# Clean and prepare data
-python clean_data.py
+Data preparation was done in Python using pandas:
 
-# Train models
-python train_models.py
-```
+- Cleaned and parsed raw CSV files  
+- Removed unused fields and ensured all columns were numeric  
+- Merged datasets into a single monthly table  
+- Created future HPI targets by shifting values for each prediction horizon  
+- Produced a clean, analysis-ready dataset for model training  
 
-### Next.js Frontend
-```bash
-# Install dependencies
-npm install
+## Model Training
 
-# Run development server
-npm run dev
-```
+The machine learning workflow includes:
 
-Open [http://localhost:3000](http://localhost:3000) to view the forecast dashboard.
+- Training **seven XGBoost regression models**, one for each prediction horizon  
+- Using structured monthly features as inputs  
+- Evaluating each model using MAE, RMSE, and R²  
+- Exporting predictions and metrics for further analysis  
 
-## Security Notice
-
-⚠️ **Important**: Never commit your `.env` file or expose your Supabase service role key publicly. The `.env.example` file is provided as a template only.
+This project demonstrates an end-to-end data workflow: **collecting data → cleaning and preparing it → engineering features → training predictive models** focused on the Toronto housing market.
