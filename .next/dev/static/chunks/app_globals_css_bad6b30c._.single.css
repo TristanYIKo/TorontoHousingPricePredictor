@@ -23,10 +23,6 @@
   }
 }
 
-.visible {
-  visibility: visible;
-}
-
 .absolute {
   position: absolute;
 }
@@ -180,6 +176,10 @@
 
 .bg-\[\#050509\] {
   background-color: #050509;
+}
+
+.text-center {
+  text-align: center;
 }
 
 .text-left {

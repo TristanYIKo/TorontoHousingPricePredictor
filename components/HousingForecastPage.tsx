@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -36,14 +36,24 @@ type ForecastPoint = { date: string; hpi: number; isFuture: boolean };
 type Horizon = {
   id: string;
   label: string;
+  months: number;
   points: ForecastPoint[];
 };
 
-// Mock data
+type PredictionData = {
+  horizon_months: number;
+  current_hpi: number;
+  predicted_hpi: number;
+  percentage_change: number;
+  ref_date: string;
+  historical?: HistoricalPoint[];
+};
+
+// Mock data - will be replaced by API calls
 const latestHpi = 165.0;
 
 // Extended historical data (more months of history)
-const historical: HistoricalPoint[] = [
+let historical: HistoricalPoint[] = [
   { date: "2024-12", hpi: 152.5 },
   { date: "2025-01", hpi: 153.8 },
   { date: "2025-02", hpi: 154.6 },
@@ -62,6 +72,7 @@ const horizons: Horizon[] = [
   {
     id: "1m",
     label: "1 Month",
+    months: 1,
     points: [
       { date: "2025-12", hpi: 168.5, isFuture: true },
     ],
@@ -69,6 +80,7 @@ const horizons: Horizon[] = [
   {
     id: "2m",
     label: "2 Months",
+    months: 2,
     points: [
       { date: "2025-12", hpi: 168.5, isFuture: true },
       { date: "2026-01", hpi: 169.2, isFuture: true },
@@ -77,6 +89,7 @@ const horizons: Horizon[] = [
   {
     id: "3m",
     label: "3 Months",
+    months: 3,
     points: [
       { date: "2025-12", hpi: 168.5, isFuture: true },
       { date: "2026-01", hpi: 169.2, isFuture: true },
@@ -86,6 +99,7 @@ const horizons: Horizon[] = [
   {
     id: "6m",
     label: "6 Months",
+    months: 6,
     points: [
       { date: "2025-12", hpi: 168.5, isFuture: true },
       { date: "2026-01", hpi: 169.2, isFuture: true },
@@ -98,6 +112,7 @@ const horizons: Horizon[] = [
   {
     id: "1y",
     label: "1 Year",
+    months: 12,
     points: Array.from({ length: 12 }, (_, i) => ({
       date: new Date(2025, 11 + i, 1).toISOString().slice(0, 7),
       hpi: 168.5 + i * 0.7,
@@ -107,6 +122,7 @@ const horizons: Horizon[] = [
   {
     id: "2y",
     label: "2 Years",
+    months: 24,
     points: Array.from({ length: 24 }, (_, i) => ({
       date: new Date(2025, 11 + i, 1).toISOString().slice(0, 7),
       hpi: 168.5 + i * 0.6,
@@ -116,6 +132,7 @@ const horizons: Horizon[] = [
   {
     id: "3y",
     label: "3 Years",
+    months: 36,
     points: Array.from({ length: 36 }, (_, i) => ({
       date: new Date(2025, 11 + i, 1).toISOString().slice(0, 7),
       hpi: 168.5 + i * 0.5,
@@ -148,23 +165,77 @@ const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
 
 export default function HousingForecastPage() {
   const [selectedHorizonId, setSelectedHorizonId] = useState("1m");
+  const [predictionData, setPredictionData] = useState<PredictionData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const selectedHorizon = useMemo(
     () => horizons.find((h) => h.id === selectedHorizonId),
     [selectedHorizonId]
   );
 
+  // Fetch prediction from API
+  useEffect(() => {
+    const fetchPrediction = async () => {
+      if (!selectedHorizon) return;
+      
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const response = await fetch(`/api/predict?horizon=${selectedHorizon.months}&include_historical=true`);
+        
+        if (!response.ok) {
+          throw new Error(`API error: ${response.statusText}`);
+        }
+        
+        const data: PredictionData = await response.json();
+        setPredictionData(data);
+        
+        // Update historical data if provided
+        if (data.historical && data.historical.length > 0) {
+          historical = data.historical;
+        }
+        
+        // Update the selected horizon's forecast points with API prediction
+        // For simplicity, we'll use the single prediction point for now
+        // In production, you'd fetch all forecast points or generate them
+        
+      } catch (err) {
+        console.error('Error fetching prediction:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch prediction');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchPrediction();
+  }, [selectedHorizon]);
+
   // Calculate metrics
-  const { finalPredictedHpi, percentChange, isPositive, timeLabel } = useMemo(() => {
+  const { finalPredictedHpi, percentChange, isPositive, timeLabel, currentHpi } = useMemo(() => {
     if (!selectedHorizon) {
       return {
         finalPredictedHpi: latestHpi,
         percentChange: 0,
         isPositive: true,
         timeLabel: "",
+        currentHpi: latestHpi,
       };
     }
 
+    // Use API data if available, otherwise fall back to mock data
+    if (predictionData) {
+      return {
+        finalPredictedHpi: predictionData.predicted_hpi,
+        percentChange: predictionData.percentage_change,
+        isPositive: predictionData.percentage_change >= 0,
+        timeLabel: `in ${selectedHorizon.label.toLowerCase()}`,
+        currentHpi: predictionData.current_hpi,
+      };
+    }
+
+    // Fallback to mock data
     const futurePredictions = selectedHorizon.points.filter((p) => p.isFuture);
     const final = futurePredictions[futurePredictions.length - 1]?.hpi || latestHpi;
     const pctChange = ((final - latestHpi) / latestHpi) * 100;
@@ -199,8 +270,9 @@ export default function HousingForecastPage() {
       percentChange: pctChange,
       isPositive: pctChange >= 0,
       timeLabel: label,
+      currentHpi: latestHpi,
     };
-  }, [selectedHorizon]);
+  }, [selectedHorizon, predictionData]);
 
   // Prepare chart data
   const chartData = useMemo(() => {
@@ -214,13 +286,13 @@ export default function HousingForecastPage() {
 
     // Map all data points for the chart
     const combinedData = [
-      // Historical data - grey line shows all historical points
-      ...historical.map(p => ({
+      // Historical data - grey line (all points except the last one will only have historical)
+      ...historical.slice(0, -1).map(p => ({
         date: p.date,
         historical: p.hpi,
         forecast: null
       })),
-      // Add connection point - both lines have values here to connect
+      // Connection point - last historical point has both values
       {
         date: lastHistorical.date,
         historical: lastHistorical.hpi,
@@ -234,14 +306,8 @@ export default function HousingForecastPage() {
       }))
     ];
 
-    // Remove duplicate of last historical (we added it twice - once in historical, once as connection)
-    const uniqueData = combinedData.filter((item, index, self) => 
-      index === self.findIndex(t => t.date === item.date) || 
-      (item.date === lastHistorical.date && item.forecast !== null)
-    );
-
     return {
-      combinedData: uniqueData,
+      combinedData: combinedData,
       lastHistoricalDate: lastHistorical.date,
     };
   }, [selectedHorizon]);
@@ -297,6 +363,19 @@ export default function HousingForecastPage() {
 
             <Separator className="bg-gray-800" />
 
+            {/* Loading/Error States */}
+            {loading && (
+              <div className="text-center text-yellow-400 py-4">
+                Loading prediction...
+              </div>
+            )}
+            
+            {error && (
+              <div className="text-center text-red-400 py-4">
+                Error: {error}. Using mock data.
+              </div>
+            )}
+
             {/* Key Numbers */}
             <div className="space-y-4">
               {/* Percentage Change */}
@@ -324,7 +403,7 @@ export default function HousingForecastPage() {
                 <div className="space-y-1">
                   <div className="text-sm text-gray-400">Current HPI</div>
                   <div className="text-2xl font-bold text-white">
-                    {latestHpi.toFixed(2)}
+                    {currentHpi.toFixed(2)}
                   </div>
                 </div>
                 <div className="space-y-1">

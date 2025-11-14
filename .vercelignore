@@ -1,0 +1,66 @@
+# Python files (keep trained models and API)
+*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Training scripts (don't deploy to Vercel)
+train_models.py
+clean_data.py
+debug_api.py
+find_series_ids.py
+load_bank_of_canada_data.py
+load_wide_table.py
+migrate_to_toronto_housing.sql
+supabase_schema_wide.sql
+
+# Data files (too large for Vercel)
+Data/
+outputs/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Next.js
+.next/
+out/
+
+# Documentation
+README.md
+SETUP.md
