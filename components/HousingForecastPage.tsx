@@ -9,12 +9,20 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   LineChart,
   Line,
@@ -99,76 +107,96 @@ export default function HousingForecastPage({
   const isPositive = selectedHorizon ? selectedHorizon.pctChangeFromLatest >= 0 : true;
 
   return (
-    <div className="min-h-screen bg-[#050509] text-gray-100">
-      <div className="max-w-5xl mx-auto px-4 py-10 space-y-8">
-        {/* Hero Card */}
-        <Card className="bg-gray-900 border-gray-800 shadow-lg">
-          <CardHeader>
-            <div className="flex items-center gap-3 mb-2">
-              <CardTitle className="text-4xl font-bold text-white">
-                Toronto Housing Price Forecast
-              </CardTitle>
-              <Badge variant="yellow" className="text-xs">
-                XGBoost ML
-              </Badge>
-            </div>
-            <CardDescription className="text-gray-400 text-base leading-relaxed">
-              This XGBoost regression model predicts Toronto&apos;s Housing Price Index at multiple horizons 
-              (1, 2, 3, 6 months and 1, 2, 3 years). Data sourced from Statistics Canada (macroeconomic + housing data) 
-              and Bank of Canada Valet API (interest rates, bond yields), stored in Supabase.
+    <div className="min-h-screen bg-black text-white">
+      <div className="max-w-6xl mx-auto px-6 py-12 space-y-8">
+        {/* Header Section */}
+        <div className="text-center space-y-4 mb-12">
+          <h1 className="text-5xl font-bold text-white">
+            Toronto Housing Price Forecast
+          </h1>
+          <div className="max-w-3xl mx-auto">
+            <p className="text-lg text-gray-300 leading-relaxed">
+              Predicting Toronto&apos;s Housing Price Index using an <span className="text-yellow-400 font-semibold">XGBoost regression model</span>.
+              The model is trained on data from Statistics Canada (macroeconomic and housing indicators) 
+              and the Bank of Canada Valet API (interest rates, bond yields), with all data stored in Supabase.
+            </p>
+          </div>
+        </div>
+
+        {/* Forecast Selection and Table */}
+        <Card className="bg-gray-950 border-gray-800 shadow-2xl">
+          <CardHeader className="border-b border-gray-800">
+            <CardTitle className="text-2xl text-yellow-400">Forecast Predictions</CardTitle>
+            <CardDescription className="text-gray-400">
+              Select a time horizon to view the predicted price change
             </CardDescription>
           </CardHeader>
-        </Card>
+          <CardContent className="pt-6 space-y-6">
+            {/* Dropdown */}
+            <div className="flex items-center gap-4">
+              <label className="text-sm font-medium text-gray-300 min-w-[140px]">
+                Select Time Horizon:
+              </label>
+              <Select value={selectedHorizonId} onValueChange={setSelectedHorizonId}>
+                <SelectTrigger className="w-[280px] bg-gray-900 border-gray-700 text-white">
+                  <SelectValue placeholder="Select forecast period" />
+                </SelectTrigger>
+                <SelectContent>
+                  {forecasts.horizons.map((horizon) => (
+                    <SelectItem key={horizon.id} value={horizon.id}>
+                      {horizon.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-        {/* Horizon Selection Card */}
-        <Card className="bg-gray-900 border-gray-800 shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-xl text-yellow-400">Select Forecast Horizon</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Tabs value={selectedHorizonId} onValueChange={setSelectedHorizonId} className="w-full">
-              <TabsList className="grid w-full grid-cols-4 md:grid-cols-7 gap-2 bg-gray-800 p-1 rounded-lg">
-                {forecasts.horizons.map((horizon) => (
-                  <TabsTrigger
-                    key={horizon.id}
-                    value={horizon.id}
-                    className="data-[state=active]:bg-yellow-400 data-[state=active]:text-gray-900 data-[state=inactive]:text-gray-300 transition-all rounded-md"
-                  >
-                    {horizon.label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
-
-            {/* Percentage Change Display */}
-            {selectedHorizon && (
-              <div className="mt-6 space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className={`text-5xl font-bold ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
-                    {isPositive ? <TrendingUp className="inline h-12 w-12 mr-2" /> : <TrendingDown className="inline h-12 w-12 mr-2" />}
-                    {isPositive ? '+' : ''}{selectedHorizon.pctChangeFromLatest.toFixed(2)}%
-                  </div>
-                  <span className="text-yellow-400 text-lg font-medium">expected change</span>
-                </div>
-                <p className="text-gray-400 text-sm">
-                  From current HPI <span className="text-white font-mono">{forecasts.latestHpi.toFixed(2)}</span> to{' '}
-                  <span className="text-white font-mono">{lastPredictedHpi.toFixed(2)}</span>
-                </p>
-              </div>
-            )}
+            {/* Prediction Table */}
+            <div className="rounded-lg border border-gray-800 overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-gray-900 hover:bg-gray-900 border-gray-800">
+                    <TableHead className="text-yellow-400 font-semibold">Time Period</TableHead>
+                    <TableHead className="text-yellow-400 font-semibold">Current HPI</TableHead>
+                    <TableHead className="text-yellow-400 font-semibold">Predicted HPI</TableHead>
+                    <TableHead className="text-yellow-400 font-semibold">Change (%)</TableHead>
+                    <TableHead className="text-yellow-400 font-semibold text-right">Trend</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {selectedHorizon && (
+                    <TableRow className="border-gray-800 hover:bg-gray-900/50">
+                      <TableCell className="font-medium text-white">{selectedHorizon.label}</TableCell>
+                      <TableCell className="text-gray-300">{forecasts.latestHpi.toFixed(2)}</TableCell>
+                      <TableCell className="text-gray-300">{lastPredictedHpi.toFixed(2)}</TableCell>
+                      <TableCell className={`font-semibold ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+                        {isPositive ? '+' : ''}{selectedHorizon.pctChangeFromLatest.toFixed(2)}%
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {isPositive ? (
+                          <TrendingUp className="inline h-5 w-5 text-green-400" />
+                        ) : (
+                          <TrendingDown className="inline h-5 w-5 text-red-400" />
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
 
         {/* Forecast Graph */}
-        <Card className="bg-gray-900 border-gray-800 shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-xl text-yellow-400">Projected Price Path</CardTitle>
+        <Card className="bg-gray-950 border-gray-800 shadow-2xl">
+          <CardHeader className="border-b border-gray-800">
+            <CardTitle className="text-2xl text-yellow-400">Price Projection Chart</CardTitle>
             <CardDescription className="text-gray-400">
-              Housing Price Index over time for {selectedHorizon?.label}
+              Visual representation of the Housing Price Index forecast for {selectedHorizon?.label}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+          <CardContent className="pt-6">
+            <ResponsiveContainer width="100%" height={400}>
               <LineChart data={getChartData()}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis 
@@ -182,23 +210,24 @@ export default function HousingForecastPage({
                 <YAxis 
                   stroke="#9CA3AF"
                   tick={{ fill: '#9CA3AF', fontSize: 12 }}
+                  label={{ value: 'HPI', angle: -90, position: 'insideLeft', fill: '#FBBF24' }}
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#1F2937',
-                    border: '1px solid #374151',
+                    backgroundColor: '#000000',
+                    border: '1px solid #FBBF24',
                     borderRadius: '8px',
-                    color: '#F3F4F6'
+                    color: '#FFFFFF'
                   }}
-                  labelStyle={{ color: '#FBBF24' }}
+                  labelStyle={{ color: '#FBBF24', fontWeight: 'bold' }}
                 />
                 <Line
                   type="monotone"
                   dataKey="hpi"
                   stroke="#FBBF24"
                   strokeWidth={3}
-                  dot={{ fill: '#FBBF24', r: 4 }}
-                  activeDot={{ r: 6, fill: '#F59E0B' }}
+                  dot={{ fill: '#FBBF24', r: 5 }}
+                  activeDot={{ r: 7, fill: '#F59E0B' }}
                 />
               </LineChart>
             </ResponsiveContainer>
