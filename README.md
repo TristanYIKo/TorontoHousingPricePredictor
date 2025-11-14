@@ -6,6 +6,13 @@ A machine learning project that forecasts Toronto’s Housing Price Index (HPI) 
 
 This project trains a set of XGBoost regression models to predict the Toronto HPI at multiple future time horizons (1, 2, 3, 6 months and 1, 2, 3 years). The goal is to understand how economic indicators relate to housing prices and generate forward-looking predictions.
 
+## 📂 Dataset Download
+
+Because the raw datasets are extremely large (several CSVs up to ~4 million rows), they are stored externally.
+
+**Google Drive Folder:**  
+https://drive.google.com/drive/folders/1WqDOycTn5odsZhpGzrtqLKqYMBKp3hQA?usp=sharing  
+
 ## Data Sources
 
 The dataset is built from several public sources:
