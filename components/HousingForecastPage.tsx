@@ -9,20 +9,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import {
   LineChart,
   Line,
@@ -30,10 +22,9 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from "recharts";
-import { TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
+import { TrendingUp, TrendingDown } from "lucide-react";
 
 interface ForecastPoint {
   date: string;
@@ -41,10 +32,10 @@ interface ForecastPoint {
 }
 
 interface HorizonForecast {
-  horizonLabel: string; // "1m", "2m", "3m", "6m", "1y", "2y", "3y"
-  displayName: string; // "Next 1 Month", etc.
-  points: ForecastPoint[];
+  id: string; // "1m", "2m", "3m", "6m", "1y", "2y", "3y"
+  label: string; // "1 Month", "2 Months", etc.
   pctChangeFromLatest: number;
+  points: ForecastPoint[];
 }
 
 interface HistoricalPoint {
@@ -53,7 +44,7 @@ interface HistoricalPoint {
 }
 
 interface ForecastsData {
-  historical: HistoricalPoint[];
+  historical?: HistoricalPoint[];
   horizons: HorizonForecast[];
   latestHpi: number;
 }
@@ -65,268 +56,155 @@ interface HousingForecastPageProps {
 export default function HousingForecastPage({
   forecasts,
 }: HousingForecastPageProps) {
-  const [selectedHorizon, setSelectedHorizon] = useState(
-    forecasts.horizons[0]?.horizonLabel || ""
+  const [selectedHorizonId, setSelectedHorizonId] = useState(
+    forecasts.horizons[0]?.id || "1m"
   );
 
-  const selectedHorizonData = forecasts.horizons.find(
-    (h) => h.horizonLabel === selectedHorizon
+  const selectedHorizon = forecasts.horizons.find(
+    (h) => h.id === selectedHorizonId
   );
+
+  const lastPredictedHpi = selectedHorizon?.points[selectedHorizon.points.length - 1]?.predictedHpi || forecasts.latestHpi;
 
   // Prepare chart data for the selected horizon
-  const getChartData = (horizon: HorizonForecast) => {
-    // Combine historical and forecast data
-    const historicalData = forecasts.historical.map((point) => ({
-      date: point.date,
-      historical: point.hpi,
-      predicted: null,
-    }));
-
-    const forecastData = horizon.points.map((point) => ({
-      date: point.date,
-      historical: null,
-      predicted: point.predictedHpi,
-    }));
-
-    // Add a connection point (last historical = first predicted)
-    if (historicalData.length > 0 && forecastData.length > 0) {
-      forecastData[0] = {
-        ...forecastData[0],
-        historical: forecasts.latestHpi,
-      };
+  const getChartData = () => {
+    if (!selectedHorizon) return [];
+    
+    const chartData: Array<{ date: string; hpi: number }> = [];
+    
+    // Add last few historical points if available
+    if (forecasts.historical && forecasts.historical.length > 0) {
+      const recentHistory = forecasts.historical.slice(-6);
+      recentHistory.forEach(point => {
+        chartData.push({ date: point.date, hpi: point.hpi });
+      });
     }
-
-    return [...historicalData.slice(-24), ...forecastData]; // Show last 24 months of history
+    
+    // Add current point
+    const firstForecastDate = selectedHorizon.points[0]?.date;
+    if (firstForecastDate && chartData.length > 0 && chartData[chartData.length - 1].date !== firstForecastDate) {
+      chartData.push({ date: firstForecastDate, hpi: forecasts.latestHpi });
+    } else if (chartData.length === 0) {
+      chartData.push({ date: firstForecastDate || new Date().toISOString().slice(0, 7), hpi: forecasts.latestHpi });
+    }
+    
+    // Add forecast points
+    selectedHorizon.points.forEach(point => {
+      chartData.push({ date: point.date, hpi: point.predictedHpi });
+    });
+    
+    return chartData;
   };
 
+  const isPositive = selectedHorizon ? selectedHorizon.pctChangeFromLatest >= 0 : true;
+
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-8">
-      {/* Header Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-3xl font-bold">
-            Toronto Housing Price Forecast
-          </CardTitle>
-          <CardDescription className="text-base mt-2">
-            This XGBoost-based predictive model forecasts Toronto&apos;s Housing
-            Price Index (HPI) across multiple time horizons: 1, 2, and 3 months,
-            as well as 1, 2, and 3 years ahead. The model leverages comprehensive
-            macroeconomic indicators including unemployment rates, CPI, building
-            permits, bond yields, interest rates, and housing market dynamics. All
-            data is sourced from Statistics Canada and the Bank of Canada, stored
-            and managed in Supabase for real-time updates and analysis.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+    <div className="min-h-screen bg-[#050509] text-gray-100">
+      <div className="max-w-5xl mx-auto px-4 py-10 space-y-8">
+        {/* Hero Card */}
+        <Card className="bg-gray-900 border-gray-800 shadow-lg">
+          <CardHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <CardTitle className="text-4xl font-bold text-white">
+                Toronto Housing Price Forecast
+              </CardTitle>
+              <Badge variant="yellow" className="text-xs">
+                XGBoost ML
+              </Badge>
+            </div>
+            <CardDescription className="text-gray-400 text-base leading-relaxed">
+              This XGBoost regression model predicts Toronto&apos;s Housing Price Index at multiple horizons 
+              (1, 2, 3, 6 months and 1, 2, 3 years). Data sourced from Statistics Canada (macroeconomic + housing data) 
+              and Bank of Canada Valet API (interest rates, bond yields), stored in Supabase.
+            </CardDescription>
+          </CardHeader>
+        </Card>
 
-      {/* Forecast Snapshot Grid */}
-      <div>
-        <h2 className="text-2xl font-semibold mb-4">Forecast Snapshot</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {forecasts.horizons.map((horizon) => {
-            const lastPoint = horizon.points[horizon.points.length - 1];
-            const isPositive = horizon.pctChangeFromLatest >= 0;
-
-            return (
-              <Card
-                key={horizon.horizonLabel}
-                className="hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() => setSelectedHorizon(horizon.horizonLabel)}
-              >
-                <CardHeader className="pb-3">
-                  <CardDescription className="text-xs uppercase tracking-wide">
-                    {horizon.displayName}
-                  </CardDescription>
-                  <CardTitle className="text-2xl">
-                    {lastPoint?.predictedHpi.toFixed(2) || "N/A"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div
-                    className={`flex items-center gap-1 text-sm font-medium ${
-                      isPositive ? "text-green-600" : "text-red-600"
-                    }`}
+        {/* Horizon Selection Card */}
+        <Card className="bg-gray-900 border-gray-800 shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-xl text-yellow-400">Select Forecast Horizon</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Tabs value={selectedHorizonId} onValueChange={setSelectedHorizonId} className="w-full">
+              <TabsList className="grid w-full grid-cols-4 md:grid-cols-7 gap-2 bg-gray-800 p-1 rounded-lg">
+                {forecasts.horizons.map((horizon) => (
+                  <TabsTrigger
+                    key={horizon.id}
+                    value={horizon.id}
+                    className="data-[state=active]:bg-yellow-400 data-[state=active]:text-gray-900 data-[state=inactive]:text-gray-300 transition-all rounded-md"
                   >
-                    {isPositive ? (
-                      <TrendingUp className="h-4 w-4" />
-                    ) : (
-                      <TrendingDown className="h-4 w-4" />
-                    )}
-                    <span>
-                      {isPositive ? "+" : ""}
-                      {horizon.pctChangeFromLatest.toFixed(2)}%
-                    </span>
+                    {horizon.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+
+            {/* Percentage Change Display */}
+            {selectedHorizon && (
+              <div className="mt-6 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className={`text-5xl font-bold ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+                    {isPositive ? <TrendingUp className="inline h-12 w-12 mr-2" /> : <TrendingDown className="inline h-12 w-12 mr-2" />}
+                    {isPositive ? '+' : ''}{selectedHorizon.pctChangeFromLatest.toFixed(2)}%
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    vs. current HPI
-                  </p>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+                  <span className="text-yellow-400 text-lg font-medium">expected change</span>
+                </div>
+                <p className="text-gray-400 text-sm">
+                  From current HPI <span className="text-white font-mono">{forecasts.latestHpi.toFixed(2)}</span> to{' '}
+                  <span className="text-white font-mono">{lastPredictedHpi.toFixed(2)}</span>
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Forecast Graph */}
+        <Card className="bg-gray-900 border-gray-800 shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-xl text-yellow-400">Projected Price Path</CardTitle>
+            <CardDescription className="text-gray-400">
+              Housing Price Index over time for {selectedHorizon?.label}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={getChartData()}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis 
+                  dataKey="date" 
+                  stroke="#9CA3AF"
+                  tick={{ fill: '#9CA3AF', fontSize: 12 }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                />
+                <YAxis 
+                  stroke="#9CA3AF"
+                  tick={{ fill: '#9CA3AF', fontSize: 12 }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#1F2937',
+                    border: '1px solid #374151',
+                    borderRadius: '8px',
+                    color: '#F3F4F6'
+                  }}
+                  labelStyle={{ color: '#FBBF24' }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="hpi"
+                  stroke="#FBBF24"
+                  strokeWidth={3}
+                  dot={{ fill: '#FBBF24', r: 4 }}
+                  activeDot={{ r: 6, fill: '#F59E0B' }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
       </div>
-
-      <Separator />
-
-      {/* Forecast Chart with Tabs */}
-      <div>
-        <h2 className="text-2xl font-semibold mb-4">Forecast Chart</h2>
-        <Tabs
-          value={selectedHorizon}
-          onValueChange={setSelectedHorizon}
-          className="w-full"
-        >
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-7">
-            {forecasts.horizons.map((horizon) => (
-              <TabsTrigger
-                key={horizon.horizonLabel}
-                value={horizon.horizonLabel}
-              >
-                {horizon.horizonLabel.replace("m", "M").replace("y", "Y")}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          {forecasts.horizons.map((horizon) => (
-            <TabsContent
-              key={horizon.horizonLabel}
-              value={horizon.horizonLabel}
-              className="mt-6"
-            >
-              <Card>
-                <CardHeader>
-                  <CardTitle>{horizon.displayName} Forecast</CardTitle>
-                  <CardDescription>
-                    Historical HPI vs. Predicted HPI for {horizon.displayName.toLowerCase()}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <LineChart data={getChartData(horizon)}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey="date"
-                        tick={{ fontSize: 12 }}
-                        angle={-45}
-                        textAnchor="end"
-                        height={80}
-                      />
-                      <YAxis tick={{ fontSize: 12 }} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "rgba(255, 255, 255, 0.95)",
-                          border: "1px solid #ccc",
-                          borderRadius: "4px",
-                        }}
-                      />
-                      <Legend />
-                      <Line
-                        type="monotone"
-                        dataKey="historical"
-                        stroke="#8884d8"
-                        strokeWidth={2}
-                        name="Historical HPI"
-                        dot={false}
-                        connectNulls={false}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="predicted"
-                        stroke="#82ca9d"
-                        strokeWidth={2}
-                        strokeDasharray="5 5"
-                        name="Predicted HPI"
-                        dot={{ r: 3 }}
-                        connectNulls={false}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          ))}
-        </Tabs>
-      </div>
-
-      <Separator />
-
-      {/* Forecast Table */}
-      <div>
-        <h2 className="text-2xl font-semibold mb-4">Forecast Details</h2>
-        {selectedHorizonData && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{selectedHorizonData.displayName} - Detailed Predictions</CardTitle>
-              <CardDescription>
-                Month-by-month predictions and percent change from current HPI
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Predicted HPI</TableHead>
-                    <TableHead className="text-right">Change from Current</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {selectedHorizonData.points.map((point, index) => {
-                    const pctChange =
-                      ((point.predictedHpi - forecasts.latestHpi) /
-                        forecasts.latestHpi) *
-                      100;
-                    const isPositive = pctChange >= 0;
-
-                    return (
-                      <TableRow key={index}>
-                        <TableCell className="font-medium">
-                          {point.date}
-                        </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {point.predictedHpi.toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <span
-                            className={`inline-flex items-center gap-1 font-medium ${
-                              isPositive ? "text-green-600" : "text-red-600"
-                            }`}
-                          >
-                            {isPositive ? (
-                              <TrendingUp className="h-3 w-3" />
-                            ) : (
-                              <TrendingDown className="h-3 w-3" />
-                            )}
-                            {isPositive ? "+" : ""}
-                            {pctChange.toFixed(2)}%
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      {/* Model Info Footer */}
-      <Card className="bg-muted/50">
-        <CardContent className="pt-6">
-          <div className="flex items-start gap-2 text-sm text-muted-foreground">
-            <ArrowRight className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            <p>
-              <strong>Model Information:</strong> Predictions are generated using
-              XGBoost regression models trained on historical Toronto housing market
-              data and macroeconomic indicators. Past performance does not guarantee
-              future results. These forecasts should be used for informational purposes
-              only and not as financial advice.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
