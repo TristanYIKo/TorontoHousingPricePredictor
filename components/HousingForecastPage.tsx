@@ -53,7 +53,7 @@ type PredictionData = {
 const latestHpi = 165.0;
 
 // Extended historical data (more months of history)
-let historical: HistoricalPoint[] = [
+const initialHistorical: HistoricalPoint[] = [
   { date: "2024-12", hpi: 152.5 },
   { date: "2025-01", hpi: 153.8 },
   { date: "2025-02", hpi: 154.6 },
@@ -173,6 +173,7 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
 export default function HousingForecastPage() {
   const [selectedHorizonId, setSelectedHorizonId] = useState("1m");
   const [predictionData, setPredictionData] = useState<PredictionData | null>(null);
+  const [historical, setHistorical] = useState<HistoricalPoint[]>(initialHistorical);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -185,29 +186,21 @@ export default function HousingForecastPage() {
   useEffect(() => {
     const fetchPrediction = async () => {
       if (!selectedHorizon) return;
-      
       setLoading(true);
       setError(null);
-      
       try {
         const response = await fetch(`/api/predict?horizon=${selectedHorizon.months}&include_historical=true`);
-        
         if (!response.ok) {
           throw new Error(`API error: ${response.statusText}`);
         }
-        
         const data: PredictionData = await response.json();
         setPredictionData(data);
-        
         // Update historical data if provided
         if (data.historical && data.historical.length > 0) {
-          historical = data.historical;
+          setHistorical(data.historical);
         }
-        
-        // Update the selected horizon's forecast points with API prediction
-        // For simplicity, we'll use the single prediction point for now
-        // In production, you'd fetch all forecast points or generate them
-        
+        // Debug logging
+        console.log('API predictionData:', data);
       } catch (err) {
         console.error('Error fetching prediction:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch prediction');
@@ -215,7 +208,6 @@ export default function HousingForecastPage() {
         setLoading(false);
       }
     };
-    
     fetchPrediction();
   }, [selectedHorizon]);
 
@@ -230,23 +222,10 @@ export default function HousingForecastPage() {
         currentHpi: latestHpi,
       };
     }
-
-    // Use API data if available, otherwise fall back to mock data
-    if (predictionData) {
-      return {
-        finalPredictedHpi: predictionData.predicted_hpi,
-        percentChange: predictionData.percentage_change,
-        isPositive: predictionData.percentage_change >= 0,
-        timeLabel: `in ${selectedHorizon.label.toLowerCase()}`,
-        currentHpi: predictionData.current_hpi,
-      };
-    }
-
-    // Fallback to mock data
+    // Always use the last forecast value from the graph for consistency
     const futurePredictions = selectedHorizon.points.filter((p) => p.isFuture);
     const final = futurePredictions[futurePredictions.length - 1]?.hpi || latestHpi;
     const pctChange = ((final - latestHpi) / latestHpi) * 100;
-
     let label = "";
     switch (selectedHorizon.id) {
       case "1m":
@@ -271,7 +250,6 @@ export default function HousingForecastPage() {
         label = "in 3 years";
         break;
     }
-
     return {
       finalPredictedHpi: final,
       percentChange: pctChange,
@@ -312,12 +290,13 @@ export default function HousingForecastPage() {
         forecast: p.hpi
       }))
     ];
-
+    // Debug logging
+    console.log('ChartData:', combinedData);
     return {
       combinedData: combinedData,
       lastHistoricalDate: lastHistorical.date,
     };
-  }, [selectedHorizon]);
+  }, [selectedHorizon, historical]);
 
   return (
     <div className="min-h-screen bg-[#050509] text-gray-100">
