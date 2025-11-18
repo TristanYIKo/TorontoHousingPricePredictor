@@ -142,7 +142,14 @@ const horizons: Horizon[] = [
 ];
 
 // Custom tooltip component
-const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
+// Use a custom props type instead of TooltipProps<number, string>
+type CustomTooltipProps = {
+  active?: boolean;
+  payload?: any[];
+  label?: string;
+};
+
+const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload as any;
     const hpiValue = data.historical || data.forecast;
