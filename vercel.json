@@ -8,6 +8,7 @@
   ],
   "env": {
     "SUPABASE_URL": "@supabase-url",
-    "SUPABASE_SERVICE_ROLE_KEY": "@supabase-service-role-key"
+    "SUPABASE_SERVICE_ROLE_KEY": "@supabase-service-role-key",
+    "SUPABASE_KEY": "@supabase-key"
   }
 }
