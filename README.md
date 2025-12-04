@@ -2,8 +2,6 @@
 
 A machine learning project that forecasts Toronto’s Housing Price Index (HPI) using historical housing, economic, and financial data.
 
-Live Demo: https://toronto-housing-price-predictor.vercel.app/
-
 ## Overview
 
 This project trains a set of XGBoost regression models to predict the Toronto HPI at multiple future time horizons (1, 2, 3, 6 months and 1, 2, 3 years). The goal is to understand how economic indicators relate to housing prices and generate forward-looking predictions.
